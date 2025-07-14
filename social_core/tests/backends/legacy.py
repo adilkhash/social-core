@@ -1,47 +1,50 @@
 import requests
+import responses
 
-from httpretty import HTTPretty
+from social_core.utils import parse_qs
 
-from ...utils import parse_qs
 from .base import BaseBackendTest
 
 
 class BaseLegacyTest(BaseBackendTest):
-    form = ''
-    response_body = ''
+    form = ""
+    response_body = ""
 
-    def setUp(self):
-        super(BaseLegacyTest, self).setUp()
-        self.strategy.set_settings({
-            'SOCIAL_AUTH_{0}_FORM_URL'.format(self.name):
-                self.strategy.build_absolute_uri('/login/{0}'.format(
-                    self.backend.name))
-        })
+    def setUp(self) -> None:
+        super().setUp()
+        self.strategy.set_settings(
+            {
+                f"SOCIAL_AUTH_{self.name}_FORM_URL": self.strategy.build_absolute_uri(
+                    f"/login/{self.backend.name}"
+                )
+            }
+        )
 
     def extra_settings(self):
-        return {'SOCIAL_AUTH_{0}_FORM_URL'.format(self.name):
-                    '/login/{0}'.format(self.backend.name)}
+        return {f"SOCIAL_AUTH_{self.name}_FORM_URL": f"/login/{self.backend.name}"}
 
     def do_start(self):
         start_url = self.strategy.build_absolute_uri(self.backend.start().url)
-        HTTPretty.register_uri(
-            HTTPretty.GET,
+        complete_url = self.complete_url
+        assert complete_url, "Subclasses must set the complete_url attribute"
+
+        responses.add(
+            responses.GET,
             start_url,
             status=200,
-            body=self.form.format(self.complete_url)
+            body=self.form.format(complete_url),
         )
-        HTTPretty.register_uri(
-            HTTPretty.POST,
-            self.complete_url,
+        responses.add(
+            responses.POST,
+            complete_url,
             status=200,
             body=self.response_body,
-            content_type='application/x-www-form-urlencoded'
+            content_type="application/x-www-form-urlencoded",
         )
-        response = requests.get(start_url)
-        self.assertEqual(response.text, self.form.format(self.complete_url))
+        response = requests.get(start_url, timeout=1)
+        self.assertEqual(response.text, self.form.format(complete_url))
         response = requests.post(
-            self.complete_url,
-            data=parse_qs(self.response_body)
+            complete_url, data=parse_qs(self.response_body), timeout=1
         )
         self.strategy.set_request_data(parse_qs(response.text), self.backend)
         return self.backend.complete()

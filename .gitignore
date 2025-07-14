@@ -25,6 +25,7 @@ pip-log.txt
 .coverage
 .tox
 nosetests.xml
+uv.lock
 
 # Translations
 *.mo
@@ -49,3 +50,8 @@ changelog.sh
 \#*\#
 
 .python-version
+
+.pytest_cache/
+
+.env
+.venv*
